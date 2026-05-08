@@ -558,7 +558,7 @@
   </div>
 
   <div class="footer">
-    <p class="hint">上のバンズが出たらゲーム終了！ 確率 <span>15%</span></p>
+    <p class="hint">上のバンズが出たらゲーム終了！ 確率 <span>10%</span></p>
     <button class="btn-add" id="addBtn" onclick="addIngredient()">次の食材を追加！</button>
     <div class="info-row">
       <button class="info-toggle" id="btnPts"  onclick="togglePanel('ptsPanel','btnPts')">食材の点数 ▼</button>
@@ -637,7 +637,7 @@
     { name: 'オニオン',       icon: '🧅', pts:  1, cls: 'onion'     },
   ];
 
-  const TOP_BUN_PROB = 0.15;
+  const TOP_BUN_PROB = 0.10;
   let totalScore = 0, count = 0, gameActive = false, isAnimating = false;
   let lastIngCls = null, streak = 1;
 
