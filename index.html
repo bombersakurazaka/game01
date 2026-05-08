@@ -539,13 +539,78 @@
     .go-count       { font-size: 12px; color: #aaa; margin-top: 5px; }
     .go-count span  { color: #888; font-weight: 700; }
     .btn-restart {
-      padding: 13px 34px; font-size: 16px; font-weight: 800;
+      width: 100%; padding: 13px 34px; font-size: 16px; font-weight: 800;
       color: #fff; background: linear-gradient(135deg, #ff6b6b, #ff9a56);
       border: none; border-radius: 14px; cursor: pointer;
       box-shadow: 0 6px 20px rgba(255,107,107,0.4); transition: transform 0.12s;
     }
     .btn-restart:hover  { transform: translateY(-2px); }
     .btn-restart:active { transform: translateY(1px); }
+
+    /* ── ゲームオーバー ボタン群 ── */
+    .go-buttons { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+    .btn-view-burger {
+      width: 100%; padding: 11px; font-size: 14px; font-weight: 700;
+      color: #e65100; background: #fff8f0;
+      border: 2px solid #ffcc80; border-radius: 12px; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-view-burger:hover { background: #fff3e0; border-color: #ff9a56; }
+
+    /* ── バーガービュー ── */
+    @keyframes viewSlideIn {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .view-overlay {
+      display: none; position: fixed; inset: 0;
+      background: linear-gradient(180deg, #1c0a00 0%, #3b1505 60%, #5c2710 100%);
+      flex-direction: column; align-items: center; z-index: 150;
+    }
+    .view-overlay.show { display: flex; animation: viewSlideIn 0.28s ease-out; }
+    .view-header {
+      width: 100%; padding: 22px 24px 14px;
+      text-align: center; flex-shrink: 0;
+    }
+    .view-h-title { font-size: 18px; font-weight: 900; color: #fff; }
+    .view-h-meta  { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+    .view-h-meta strong { color: #ffd54f; font-size: 14px; }
+    .view-h-hint  { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 6px; }
+    .view-body {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      width: 100%; max-width: 420px;
+      display: flex; flex-direction: column;
+    }
+    .view-body::-webkit-scrollbar { width: 4px; }
+    .view-body::-webkit-scrollbar-thumb { background: rgba(255,200,100,0.3); border-radius: 2px; }
+    .view-inner {
+      display: flex; flex-direction: column;
+      background: #fdf6e3;
+      width: 100%; margin: auto 0;
+    }
+    .view-footer {
+      width: 100%; max-width: 420px;
+      padding: 12px 20px 28px; flex-shrink: 0;
+      display: flex; gap: 8px;
+    }
+    .btn-view-back {
+      flex: 1; padding: 13px 10px; font-size: 13px; font-weight: 700;
+      color: rgba(255,255,255,0.85);
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 12px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-view-back:hover { background: rgba(255,255,255,0.20); }
+    .btn-view-restart {
+      flex: 2; padding: 13px 10px; font-size: 14px; font-weight: 800;
+      color: #fff; background: linear-gradient(135deg, #ff6b6b, #ff9a56);
+      border: none; border-radius: 12px; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(255,107,107,0.4);
+      transition: transform 0.12s, box-shadow 0.12s;
+    }
+    .btn-view-restart:hover  { transform: translateY(-2px); box-shadow: 0 7px 22px rgba(255,107,107,0.5); }
+    .btn-view-restart:active { transform: translateY(1px); }
   </style>
 </head>
 <body>
@@ -625,7 +690,23 @@
       <div class="go-count">食材 <span id="finalCount">0</span> 種類</div>
       <div class="go-hiscore">ハイスコア <span id="goHiScore">0</span>pt</div>
     </div>
-    <button class="btn-restart" onclick="showStartScreen()">もう一度チャレンジ！</button>
+    <div class="go-buttons">
+      <button class="btn-view-burger" onclick="viewBurger()">🍔 完成バーガーを眺める</button>
+      <button class="btn-restart" onclick="showStartScreen()">もう一度チャレンジ！</button>
+    </div>
+  </div>
+</div>
+
+<div class="view-overlay" id="viewOverlay">
+  <div class="view-header">
+    <div class="view-h-title">🍔 今回のハンバーガー</div>
+    <div class="view-h-meta" id="viewMeta"></div>
+    <div class="view-h-hint">↕ スクロールで全体を確認</div>
+  </div>
+  <div class="view-body" id="viewBody"></div>
+  <div class="view-footer">
+    <button class="btn-view-back" onclick="backToResult()">← 結果に戻る</button>
+    <button class="btn-view-restart" onclick="showStartScreen()">もう一度チャレンジ！</button>
   </div>
 </div>
 
@@ -841,6 +922,7 @@
   /* ── スタート画面 ── */
   function showStartScreen() {
     document.getElementById('gameoverOverlay').classList.remove('show');
+    document.getElementById('viewOverlay').classList.remove('show');
     const hs = getHiScore();
     const el = document.getElementById('startHsDisplay');
     if (hs > 0) {
@@ -924,6 +1006,7 @@
       'ちょっと早かったね',
     ],
     mid:  [
+      // 元のメッセージ
       'ハンバーガー完成！',
       'ナイスバーガー！',
       '美味しそう！',
@@ -932,6 +1015,104 @@
       'グルメバーガー誕生！',
       'これはうまそう！',
       'なかなかの積み上げ！',
+      // 一言セリフ系
+      '明日もいい天気だといいね',
+      '今日のお昼ご飯、何食べよう',
+      '最近ちゃんと水飲んでる？',
+      '布団から出るのって難しいよね',
+      '今夜は早めに寝よう',
+      'たまには空を見上げてみよう',
+      '深呼吸するとちょっと楽になるよ',
+      '散歩ってなんか気持ちいいよね',
+      '今週も乗り越えた、えらい！',
+      'コンビニスイーツって裏切らないよね',
+      'お茶でも飲んでひと息つこう',
+      '昨日より今日の方がちょっとだけ上手くなってる',
+      '誰かに「ありがとう」って言いたくなった',
+      '今日もお疲れ様でした',
+      '好きな音楽でも聴いてリラックスして',
+      '窓を開けると気持ちいい風が入ってきそう',
+      '虹を見ると誰かに言いたくなるよね',
+      '帰り道の方が行き道より速く感じるの、なぜだろう',
+      '公園のベンチを見るとなんとなく座りたくなる',
+      '図書館の匂いが好きな人は多いと思う',
+      'タイムカプセルを埋めたことってある？',
+      'お腹すいてきた気がする',
+      '冬に限って薄い靴下を履いてしまうんだよね',
+      '次は更においしそうなバーガーを作ってね！',
+      // 雑学系
+      'タコは心臓が3つあるんだって',
+      'カタツムリは歯が約25000本あるらしい',
+      'バナナは植物学的には草の実なんだって',
+      '蜂蜜は何年経っても腐らないらしい',
+      '猫の鼻紋は人間の指紋みたいに全員違うんだよ',
+      'アリは自分の体重の50倍のものを運べるらしい',
+      'ラッコは眠るとき手をつないで流されないようにするんだって',
+      'ゾウは唯一ジャンプできない哺乳類と言われているよ',
+      'クマノミはすべてオスとして生まれてくるんだって',
+      'イルカは片目を開けたまま寝るんだよ',
+      'チョコレートの語源はアステカ語の「苦い水」なんだって',
+      'コアラの指紋は人間とほぼ見分けがつかないらしい',
+      'カバの汗は赤くて天然の日焼け止めになるらしい',
+      'タコの吸盤には味覚センサーがあって触っただけで味がわかるらしい',
+      '日本語の「木漏れ日」は外国語に訳せない言葉のひとつなんだよ',
+      'ごぼうの花言葉は「いじめないで」だよ',
+      '世界で一番高い木はカリフォルニアのセコイアで約116mだって',
+      '人間の骨は子供の頃より大人になると少なくなるんだよ',
+      'ペンギンは塩分を処理する特別な腺を目の上に持っているんだって',
+      'ヒトデは胃を体の外に出して消化することができるんだって',
+      'ピラニアの歯は片側ずつ順番に生え替わるので、常に鋭い歯で噛み続けられるんだって',
+      '富士山の頂上には夏山シーズンだけ開く郵便局があるんだよ',
+      '人間は一生の間にドラム缶約200本分の唾液を出すらしい',
+      'かたつむりとナメクジは同じ仲間で殻があるかどうかの違いだけ',
+      'アボカドは植物学的には果物に分類されるんだって',
+      '宇宙は完全な無音で爆発音も聞こえないんだよ',
+      'タコの血は青い。銅を含んでいるから',
+      'フラミンゴはエビを食べるからピンク色になるんだって',
+      'パンダは1日に10〜18時間も食事しているらしい',
+      '世界一深い湖はロシアのバイカル湖で約1640mだよ',
+      'ミツバチは一生かけてスプーン1杯分の蜂蜜しか作れないらしい',
+      'アリは女王アリが死ぬとコロニー全体が崩壊することがある',
+      'カエルは水を飲まず皮膚から水分を吸収するんだって',
+      'サメは骨がなく、骨格が全部軟骨でできているらしい',
+      'タコは色盲なのに、皮膚の色や模様を自在に変えられるって不思議だよね',
+      'ライオンは1日に20時間近く眠るらしい',
+      // どうでもいい一言ネタ系
+      '実はバーガーよりもピザが好き',
+      'カップラーメンの3分ってほぼ待てない',
+      '布団が一番の友達かもしれない',
+      'スマホの充電が20%を切るとなんか焦る',
+      '月曜日だけ時間の流れが遅い気がする',
+      'ポテトチップスを1枚だけ食べて止める人を信じない',
+      '新品のノートの1ページ目が一番緊張する',
+      '靴下って気づくといつも片方なくなってる',
+      '「もう寝よう」と思ってからさらに1時間経つのがデフォルト',
+      '電池が切れる寸前までリモコンを使い続けるタイプ',
+      '冷蔵庫を開けてから何を取るか決めるのが普通だと思ってた',
+      '消しゴムのかすを集めて捨てるのがなぜか好き',
+      'アイスは溶けかけが一番うまい',
+      '押し入れの奥にあるものを正確に言える人はいない',
+      'ビニール傘を何本持っているか数えたくない',
+      '一番使いやすいペンはいつも行方不明',
+      '「少し暑い」が一番服装に困る',
+      'サビの部分だけずっと口ずさんでいる曲がある',
+      '夜に食べるカップ麺の背徳感は美味しさに変換される',
+      '新しい文具を買っても結局いつものを使ってしまう',
+      '読もうと思って積んである本がある',
+      '大事なことをメモしたのに何のメモか忘れることがある',
+      'フードの紐を均等にするまで引っ張ってしまう',
+      '頭の中でBGMが鳴っている時間の方が長い',
+      'ドア前でバッグをガサゴソするのに鍵は最初から手前にある',
+      '消費期限ぎりぎりのものから食べていくクセがある',
+      '「ちょっとだけ」が一番信用できない言葉かもしれない',
+      '手持ち無沙汰なとき、ペンをくるくる回そうとして落とす',
+      'スーパーのBGMって気づいたら口ずさんでいる',
+      '写真を撮った後にすぐ確認するタイプ',
+      '自分の笑い声って録音で聞くとちょっと恥ずかしい',
+      'ガチャガチャを素通りできない',
+      '「疲れた」と言ってから本当に疲れを感じ始めることがある',
+      'メモアプリが未整理のメモだらけになってる',
+      'タイムリープできるなら何回でもここに来る',
     ],
     high: [
       '超豪華バーガー完成！！',
@@ -977,6 +1158,30 @@
     if (pts <= 149)  return '🏆 ビッグバーガー！';
     if (pts <= 299)  return '🌟 モンスターバーガー！！';
     return               '🚀 伝説のバーガー！！！';
+  }
+
+  function viewBurger() {
+    document.getElementById('gameoverOverlay').classList.remove('show');
+
+    const clone = document.getElementById('stack').cloneNode(true);
+    clone.id = '';
+    clone.className = 'view-inner';
+    clone.querySelectorAll('.animate').forEach(el => el.classList.remove('animate'));
+    clone.querySelectorAll('.point-popup').forEach(el => el.remove());
+
+    const body = document.getElementById('viewBody');
+    body.innerHTML = '';
+    body.appendChild(clone);
+    body.scrollTop = 0;
+
+    document.getElementById('viewMeta').innerHTML =
+      `スコア <strong>${totalScore}pt</strong> ／ 食材 <strong>${count}種類</strong>`;
+    document.getElementById('viewOverlay').classList.add('show');
+  }
+
+  function backToResult() {
+    document.getElementById('viewOverlay').classList.remove('show');
+    document.getElementById('gameoverOverlay').classList.add('show');
   }
 
   function togglePanel(panelId, btnId) {
