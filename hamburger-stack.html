@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🍔 ハンバーガースタック</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #ff9a56 0%, #ff6b6b 50%, #c0392b 100%);
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      padding: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      width: 360px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+
+    /* ── ヘッダー ── */
+    .header {
+      background: linear-gradient(135deg, #ff9a56, #ff6b6b);
+      padding: 14px 20px 12px;
+      text-align: center;
+    }
+    .header h1 { font-size: 20px; color: #fff; font-weight: 900; }
+    .score-row { display: flex; align-items: baseline; justify-content: center; gap: 4px; margin-top: 6px; }
+    .score-label { color: rgba(255,255,255,0.85); font-size: 13px; }
+    .score-value { font-size: 44px; font-weight: 900; color: #fff; line-height: 1; }
+    .score-unit  { color: rgba(255,255,255,0.85); font-size: 15px; font-weight: 700; }
+    .count-row   { color: rgba(255,255,255,0.75); font-size: 12px; margin-top: 2px; }
+    .count-row span { font-weight: 800; color: rgba(255,255,255,0.95); }
+
+    /* ── スタックエリア ── */
+    .stack-wrapper {
+      height: 390px;
+      overflow-y: auto; overflow-x: hidden;
+      background: #fdf6e3;
+      border-bottom: 1px solid #e8d5a0;
+      position: relative;
+    }
+    .stack-wrapper::-webkit-scrollbar { width: 4px; }
+    .stack-wrapper::-webkit-scrollbar-thumb { background: #d4b871; border-radius: 2px; }
+    .stack {
+      display: flex; flex-direction: column;
+      min-height: 100%; justify-content: flex-end;
+    }
+
+    /* ── 食材ユニット（ビジュアル + バッジ） ── */
+    .stack-item {
+      position: relative; flex-shrink: 0; width: 100%;
+    }
+    @keyframes fall {
+      0%   { transform: translateY(-100px); opacity: 0; }
+      55%  { transform: translateY(7px);    opacity: 1; }
+      75%  { transform: translateY(-4px); }
+      100% { transform: translateY(0); }
+    }
+    .stack-item.animate { animation: fall 0.44s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; }
+
+    /* バッジ */
+    .item-badge {
+      position: absolute; bottom: 3px; right: 7px;
+      background: rgba(0,0,0,0.48);
+      color: #fff; border-radius: 999px;
+      padding: 1px 8px; font-size: 10px; font-weight: 700;
+      z-index: 10; pointer-events: none; white-space: nowrap;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .item-badge .b-pts { color: #ffd54f; }
+
+    /* ── 各レイヤー共通 ── */
+    .layer { position: relative; width: 100%; }
+
+    /* ── 上バンズ ── */
+    .layer-bun-top {
+      height: 72px;
+      background: radial-gradient(ellipse 68% 55% at 50% 28%,
+        #fde68a 0%, #f59e0b 38%, #b45309 70%, #78350f 100%);
+      border-radius: 50% 50% 0 0 / 62% 62% 0 0;
+    }
+    /* ごまつぶ */
+    .layer-bun-top::before {
+      content: '';
+      position: absolute; width: 7px; height: 3px;
+      background: rgba(255, 245, 160, 0.75); border-radius: 50%;
+      top: 17px; left: calc(50% - 3.5px);
+      box-shadow:
+        -32px  4px 0 rgba(255,245,160,.70),
+        -20px 12px 0 rgba(255,245,160,.65),
+        -9px  -1px 0 1px rgba(255,245,160,.72),
+         11px  7px 0 rgba(255,245,160,.70),
+         22px -3px 0 1px rgba(255,245,160,.65),
+         33px  9px 0 rgba(255,245,160,.70);
+    }
+    /* つや */
+    .layer-bun-top::after {
+      content: '';
+      position: absolute; top: 7px; left: 28%; right: 28%;
+      height: 28%; border-radius: 50%;
+      background: rgba(255,255,255,0.16); filter: blur(5px);
+    }
+
+    /* ── 下バンズ ── */
+    .layer-bun-bottom {
+      height: 50px;
+      background: linear-gradient(180deg,
+        #fde68a 0%, #f59e0b 22%, #b45309 55%, #78350f 100%);
+      border-radius: 0 0 44% 44% / 0 0 58% 58%;
+    }
+
+    /* ── ビーフパティ ── */
+    .layer-beef {
+      height: 50px; margin: 0 14px;
+      background: radial-gradient(ellipse 82% 65% at 50% 50%,
+        #5c2d0e 10%, #3b1a06 55%, #5c2d0e 100%);
+      border-radius: 8px 6px 6px 8px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.45);
+    }
+    /* グリル跡 */
+    .layer-beef::before {
+      content: ''; position: absolute; inset: 8px 0; border-radius: 4px;
+      background: repeating-linear-gradient(
+        -58deg, transparent 0, transparent 6px,
+        rgba(0,0,0,0.28) 6px, rgba(0,0,0,0.28) 8px);
+    }
+    /* 表面のつや */
+    .layer-beef::after {
+      content: ''; position: absolute; inset: 0; border-radius: inherit;
+      background: radial-gradient(ellipse at 32% 28%, rgba(140,70,25,0.35) 0%, transparent 55%);
+    }
+
+    /* ── チーズ（端がはみ出す黄色シート） ── */
+    .layer-cheese {
+      height: 20px;
+      background: linear-gradient(180deg, #fef08a 0%, #fde047 50%, #ca8a04 100%);
+      box-shadow: 2px 3px 0 rgba(0,0,0,0.12);
+    }
+    /* 角の溶けたたれ */
+    .layer-cheese::after {
+      content: ''; position: absolute; bottom: -10px; left: 0; right: 0; height: 11px;
+      background: #fde047;
+      clip-path: polygon(
+        0 0, 3% 0, 6% 100%, 10% 0, 14% 0,
+        90% 0, 94% 100%, 97% 0, 100% 0, 100% 0, 0 0
+      );
+    }
+
+    /* ── レタス（ギザギザ葉） ── */
+    .layer-lettuce {
+      height: 26px; margin: 0 2px;
+      background: linear-gradient(180deg, #bbf7d0 0%, #4ade80 30%, #166534 100%);
+      clip-path: polygon(
+        0% 60%, 2.5% 12%, 5% 62%, 7.5% 18%, 10% 68%,
+        12.5%  8%, 15% 58%, 17.5%  4%, 20% 52%, 22.5%  0%,
+        25% 48%, 27.5%  0%, 30% 52%, 32.5% 10%, 35% 58%,
+        37.5%  4%, 40% 54%, 42.5%  0%, 45% 48%, 47.5% 14%,
+        50% 62%, 52.5%  8%, 55% 58%, 57.5%  4%, 60% 52%,
+        62.5%  0%, 65% 48%, 67.5% 18%, 70% 66%,
+        72.5% 12%, 75% 58%, 77.5%  4%, 80% 52%,
+        82.5%  0%, 85% 48%, 87.5% 14%, 90% 62%,
+        92.5%  8%, 95% 58%, 97.5%  4%, 100% 52%,
+        100% 100%, 0% 100%
+      );
+    }
+    /* 葉脈 */
+    .layer-lettuce::after {
+      content: ''; position: absolute; bottom: 0; top: 45%; left: 0; right: 0;
+      background: repeating-linear-gradient(
+        90deg, transparent 0, transparent 18px,
+        rgba(255,255,255,0.18) 18px, rgba(255,255,255,0.18) 19px);
+    }
+
+    /* ── トマト ── */
+    .layer-tomato {
+      height: 20px; margin: 0 20px;
+      background: radial-gradient(ellipse at 50% 50%, #f87171 0%, #dc2626 100%);
+      border-radius: 4px; overflow: hidden;
+    }
+    /* 放射状の仕切り線 */
+    .layer-tomato::before {
+      content: ''; position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        90deg, transparent 0, transparent 16px,
+        rgba(255,255,255,0.14) 16px, rgba(255,255,255,0.14) 18px);
+    }
+    /* 種のドット */
+    .layer-tomato::after {
+      content: ''; position: absolute;
+      width: 4px; height: 4px; border-radius: 50%;
+      background: rgba(255,220,200,0.7);
+      top: 50%; left: 9px; transform: translateY(-50%);
+      box-shadow:
+        18px 0 0 rgba(255,220,200,.65),
+        36px 0 0 rgba(255,220,200,.65),
+        54px 0 0 rgba(255,220,200,.65),
+        72px 0 0 rgba(255,220,200,.65),
+        90px 0 0 rgba(255,220,200,.65),
+        108px 0 0 rgba(255,220,200,.65),
+        126px 0 0 rgba(255,220,200,.65),
+        144px 0 0 rgba(255,220,200,.65),
+        162px 0 0 rgba(255,220,200,.65);
+    }
+
+    /* ── ベーコン（縞模様） ── */
+    .layer-bacon {
+      height: 24px; margin: 0 10px; border-radius: 4px; overflow: hidden;
+      background: repeating-linear-gradient(
+        90deg,
+        #991b1b 0%, #991b1b 15%,
+        #fca5a5 15%, #fca5a5 32%,
+        #dc2626 32%, #dc2626 50%,
+        #fecaca 50%, #fecaca 66%,
+        #b91c1c 66%, #b91c1c 100%);
+    }
+    /* ウェーブ形状 */
+    .layer-bacon::after {
+      content: ''; position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        180deg,
+        rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.08) 35%,
+        transparent 35%, transparent 65%,
+        rgba(0,0,0,0.08) 65%, rgba(0,0,0,0.08) 100%);
+    }
+
+    /* ── フライドエッグ ── */
+    .layer-egg {
+      height: 42px; margin: 2px 22px;
+      background: #f9f9f2;
+      border-radius: 42% 42% 50% 50% / 52% 52% 60% 60%;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.12);
+    }
+    /* 黄身 */
+    .layer-egg::before {
+      content: ''; position: absolute;
+      width: 28px; height: 22px; border-radius: 50%;
+      background: radial-gradient(ellipse at 36% 32%, #fef9c3 0%, #fde047 28%, #f59e0b 65%, #d97706 100%);
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.22);
+    }
+    /* 白身のつや */
+    .layer-egg::after {
+      content: ''; position: absolute; inset: 3px;
+      border-radius: inherit;
+      background: radial-gradient(ellipse at 28% 22%, rgba(255,255,255,0.65) 0%, transparent 55%);
+    }
+
+    /* ── アボカド ── */
+    .layer-avocado {
+      height: 24px; margin: 0 18px;
+      background: linear-gradient(180deg, #86efac 0%, #4ade80 40%, #166534 100%);
+      border-radius: 6px;
+    }
+    /* 外皮のライン */
+    .layer-avocado::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 4px; background: #14532d; border-radius: 6px 6px 0 0;
+    }
+    /* 果肉のハイライト */
+    .layer-avocado::after {
+      content: ''; position: absolute; inset: 5px 18px;
+      background: radial-gradient(ellipse, #dcfce7 0%, #86efac 50%, transparent 80%);
+      border-radius: 4px;
+    }
+
+    /* ── マッシュルーム（横向きスライスを並べる） ── */
+    .layer-mushroom {
+      height: 36px; margin: 0 10px;
+      position: relative; background: transparent;
+    }
+    /* 傘ドーム — border-radius が box-shadow にも引き継がれるのでドーム形で繰り返せる */
+    .layer-mushroom::before {
+      content: ''; position: absolute;
+      width: 22px; height: 16px;
+      border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+      background: linear-gradient(180deg, #e2ddd8 0%, #b5a99e 40%, #857265 74%, #5c4a42 100%);
+      top: 0; left: 7px;
+      box-shadow:
+        38px 0 0 #b5a99e,  76px 0 0 #b5a99e, 114px 0 0 #b5a99e,
+        152px 0 0 #b5a99e, 190px 0 0 #b5a99e, 228px 0 0 #b5a99e,
+        266px 0 0 #b5a99e, 304px 0 0 #b5a99e;
+    }
+    /* 茎 */
+    .layer-mushroom::after {
+      content: ''; position: absolute;
+      width: 7px; height: 20px;
+      background: linear-gradient(180deg, #d4c8be 0%, #a09080 100%);
+      border-radius: 0 0 3px 3px;
+      top: 16px; left: 14px;
+      box-shadow:
+        38px 0 0 #a09080,  76px 0 0 #a09080, 114px 0 0 #a09080,
+        152px 0 0 #a09080, 190px 0 0 #a09080, 228px 0 0 #a09080,
+        266px 0 0 #a09080;
+    }
+
+    /* ── オニオン ── */
+    .layer-onion {
+      height: 14px; margin: 0 22px; border-radius: 999px; overflow: hidden;
+      background: repeating-linear-gradient(
+        180deg,
+        rgba(216,180,254,0.45) 0px, rgba(216,180,254,0.45) 3px,
+        rgba(255,255,255,0.55) 3px, rgba(255,255,255,0.55) 5px,
+        rgba(192,132,252,0.55) 5px, rgba(192,132,252,0.55) 9px,
+        rgba(255,255,255,0.45) 9px, rgba(255,255,255,0.45) 11px);
+      border: 1.5px solid rgba(167,139,250,0.6);
+    }
+
+    /* ── ピクルス（スライス断面） ── */
+    .layer-pickle {
+      height: 15px; margin: 0 20px; background: transparent; overflow: visible;
+    }
+    .layer-pickle::before {
+      content: ''; position: absolute;
+      width: 20px; height: 13px; border-radius: 50%;
+      background: radial-gradient(ellipse, #bbf7d0 30%, #4ade80 65%, #166534 100%);
+      border: 1.5px solid #15803d;
+      top: 1px; left: 8px;
+      box-shadow:
+        28px 0 0 0 #4ade80, 56px 0 0 0 #4ade80, 84px 0 0 0 #4ade80,
+        112px 0 0 0 #4ade80, 140px 0 0 0 #4ade80, 168px 0 0 0 #4ade80,
+        196px 0 0 0 #4ade80, 224px 0 0 0 #4ade80, 252px 0 0 0 #4ade80;
+    }
+    /* 種 */
+    .layer-pickle::after {
+      content: ''; position: absolute;
+      width: 3px; height: 3px; border-radius: 50%;
+      background: rgba(255,255,200,0.75);
+      top: 6px; left: 17px;
+      box-shadow:
+        28px 0 0 rgba(255,255,200,.7), 56px 0 0 rgba(255,255,200,.7),
+        84px 0 0 rgba(255,255,200,.7), 112px 0 0 rgba(255,255,200,.7),
+        140px 0 0 rgba(255,255,200,.7), 168px 0 0 rgba(255,255,200,.7),
+        196px 0 0 rgba(255,255,200,.7), 224px 0 0 rgba(255,255,200,.7);
+    }
+
+    /* ── ハラペーニョ（輪切り） ── */
+    .layer-jalapeno {
+      height: 14px; margin: 0 24px; background: transparent; overflow: visible;
+    }
+    .layer-jalapeno::before {
+      content: ''; position: absolute;
+      width: 14px; height: 12px; border-radius: 50%;
+      background: radial-gradient(circle, #86efac 30%, #16a34a 80%, #14532d 100%);
+      border: 1px solid #15803d;
+      top: 1px; left: 10px;
+      box-shadow:
+        22px 0 0 0 #16a34a, 44px 0 0 0 #16a34a, 66px 0 0 0 #16a34a,
+        88px 0 0 0 #16a34a, 110px 0 0 0 #16a34a, 132px 0 0 0 #16a34a,
+        154px 0 0 0 #16a34a, 176px 0 0 0 #16a34a, 198px 0 0 0 #16a34a,
+        220px 0 0 0 #16a34a, 242px 0 0 0 #16a34a, 264px 0 0 0 #16a34a;
+    }
+    .layer-jalapeno::after {
+      content: ''; position: absolute;
+      width: 3px; height: 3px; border-radius: 50%;
+      background: rgba(255,255,180,0.8);
+      top: 6px; left: 16px;
+      box-shadow:
+        22px 0 0 rgba(255,255,180,.75), 44px 0 0 rgba(255,255,180,.75),
+        66px 0 0 rgba(255,255,180,.75), 88px 0 0 rgba(255,255,180,.75),
+        110px 0 0 rgba(255,255,180,.75), 132px 0 0 rgba(255,255,180,.75),
+        154px 0 0 rgba(255,255,180,.75), 176px 0 0 rgba(255,255,180,.75);
+    }
+
+    /* ── マヨネーズ ── */
+    .layer-mayo {
+      height: 13px; margin: 0 16px; border-radius: 3px;
+      background: #fafaf0;
+    }
+    .layer-mayo::after {
+      content: ''; position: absolute; inset: 2px; border-radius: 2px;
+      background:
+        radial-gradient(ellipse 28% 70% at 15% 50%, rgba(255,255,255,0.85) 0%, transparent 100%),
+        radial-gradient(ellipse 22% 70% at 48% 50%, rgba(255,255,255,0.75) 0%, transparent 100%),
+        radial-gradient(ellipse 24% 70% at 80% 50%, rgba(255,255,255,0.80) 0%, transparent 100%);
+    }
+
+    /* ── +Xpt ポップアップ ── */
+    @keyframes floatUp {
+      0%   { transform: translateX(-50%) translateY(0)     scale(1.3); opacity: 1; }
+      30%  { transform: translateX(-50%) translateY(-16px) scale(1.1); opacity: 1; }
+      100% { transform: translateX(-50%) translateY(-56px) scale(0.9); opacity: 0; }
+    }
+    .point-popup {
+      position: absolute; left: 50%; top: 6px;
+      transform: translateX(-50%);
+      font-size: 22px; font-weight: 900;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+      animation: floatUp 0.9s ease-out forwards;
+      pointer-events: none; z-index: 50; white-space: nowrap;
+    }
+    .point-popup.high { color: #fde047; }
+    .point-popup.mid  { color: #fff; }
+    .point-popup.low  { color: rgba(255,255,255,0.72); font-size: 17px; }
+
+    /* ── フッター ── */
+    .footer { padding: 12px 18px 16px; background: #fff; }
+    .hint { text-align: center; font-size: 12px; color: #aaa; margin-bottom: 10px; }
+    .hint span { color: #ff9a56; font-weight: 700; }
+    .btn-add {
+      width: 100%; padding: 15px; font-size: 17px; font-weight: 800;
+      color: #fff; background: linear-gradient(135deg, #ff6b6b, #ff9a56);
+      border: none; border-radius: 14px; cursor: pointer;
+      box-shadow: 0 6px 20px rgba(255,107,107,0.4);
+      transition: transform 0.12s, box-shadow 0.12s;
+    }
+    .btn-add:hover   { transform: translateY(-2px); box-shadow: 0 9px 26px rgba(255,107,107,0.5); }
+    .btn-add:active  { transform: translateY(1px);  box-shadow: 0 3px 12px rgba(255,107,107,0.4); }
+    .btn-add:disabled { opacity: 0.45; cursor: default; transform: none; box-shadow: none; }
+
+    .info-row {
+      display: flex; gap: 6px; margin-top: 8px;
+    }
+    .info-toggle {
+      flex: 1; background: #f7f7f7; border: 1px solid #e8e8e8;
+      border-radius: 8px; color: #999; font-size: 11px;
+      cursor: pointer; padding: 5px 0; transition: background 0.15s, color 0.15s;
+    }
+    .info-toggle:hover { background: #fff3e0; color: #ff9a56; border-color: #ffd54f; }
+    .info-toggle.active { background: #fff8f0; color: #e65100; border-color: #ffb74d; font-weight: 700; }
+
+    .info-panel { display: none; margin-top: 8px; border-top: 1px solid #f0f0f0; padding-top: 8px; font-size: 11px; color: #888; }
+    .info-panel.open { display: block; }
+    .info-panel table { width: 100%; border-collapse: collapse; }
+    .info-panel td { padding: 2px 6px; }
+    .info-panel .hi  { color: #e65100; font-weight: 700; }
+    .info-panel .mid { color: #795548; }
+    .info-panel .lo  { color: #aaa; }
+
+    /* 称号テーブル用：1行レイアウト */
+    .rank-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 6px; border-radius: 6px; }
+    .rank-row:nth-child(odd) { background: #fafafa; }
+    .rank-row .rank-name { font-size: 12px; }
+    .rank-row .rank-pts { font-weight: 700; white-space: nowrap; }
+
+    /* ── スタート画面 ── */
+    .start-overlay {
+      display: none; position: fixed; inset: 0;
+      background: linear-gradient(135deg, #ff9a56 0%, #ff6b6b 50%, #c0392b 100%);
+      align-items: center; justify-content: center; z-index: 200;
+    }
+    .start-overlay.show { display: flex; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .start-card {
+      background: #fff; border-radius: 24px; width: 300px;
+      padding: 36px 28px 28px; text-align: center;
+      box-shadow: 0 28px 70px rgba(0,0,0,0.35);
+      animation: fadeIn 0.35s ease-out;
+    }
+    .start-logo  { font-size: 60px; line-height: 1; margin-bottom: 6px; }
+    .start-title { font-size: 20px; font-weight: 900; color: #333; margin-bottom: 18px; letter-spacing: -0.3px; }
+    .start-hs-wrap {
+      background: #fff8f0; border-radius: 14px;
+      padding: 10px 20px 12px; margin-bottom: 20px;
+    }
+    .start-hs-label { font-size: 11px; color: #aaa; margin-bottom: 3px; }
+    .start-hs-value { font-size: 46px; font-weight: 900; color: #ff6b6b; line-height: 1; }
+    .start-hs-unit  { font-size: 15px; color: #ff9a56; font-weight: 700; }
+    .start-hs-none  { font-size: 20px; color: #ddd; font-weight: 700; padding: 8px 0; }
+    .btn-start {
+      width: 100%; padding: 15px; font-size: 18px; font-weight: 800;
+      color: #fff; background: linear-gradient(135deg, #ff6b6b, #ff9a56);
+      border: none; border-radius: 14px; cursor: pointer;
+      box-shadow: 0 6px 20px rgba(255,107,107,0.4);
+      transition: transform 0.12s, box-shadow 0.12s; margin-bottom: 12px;
+    }
+    .btn-start:hover  { transform: translateY(-2px); box-shadow: 0 9px 26px rgba(255,107,107,0.5); }
+    .btn-start:active { transform: translateY(1px); }
+    .start-rule { font-size: 11px; color: #bbb; line-height: 1.6; }
+
+    /* 新記録バッジ */
+    .new-record {
+      display: none; font-size: 13px; font-weight: 900; color: #fff;
+      background: linear-gradient(135deg, #fbbf24, #f97316);
+      border-radius: 999px; padding: 3px 16px; margin-bottom: 6px;
+    }
+    .new-record.show {
+      display: inline-block;
+      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    /* ゲームオーバー画面のハイスコア行 */
+    .go-hiscore { font-size: 12px; color: #bbb; margin-top: 5px; }
+    .go-hiscore span { color: #ff9a56; font-weight: 700; }
+
+    /* ── ゲームオーバー ── */
+    .gameover-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      align-items: center; justify-content: center; z-index: 100;
+    }
+    .gameover-overlay.show { display: flex; }
+    .gameover-card {
+      background: #fff; border-radius: 24px; padding: 30px 32px 28px;
+      text-align: center; box-shadow: 0 28px 70px rgba(0,0,0,0.45);
+      animation: popIn 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      min-width: 280px;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.4) translateY(40px); opacity: 0; }
+      to   { transform: scale(1)   translateY(0);    opacity: 1; }
+    }
+    .go-emoji  { font-size: 56px; line-height: 1; margin-bottom: 8px; }
+    .go-title  { font-size: 22px; font-weight: 900; color: #222; margin-bottom: 4px; }
+    .go-rank   {
+      display: inline-block; background: #fff3e0; color: #e65100;
+      border-radius: 999px; padding: 3px 14px;
+      font-size: 13px; font-weight: 800; margin-bottom: 16px;
+    }
+    .go-score-block {
+      background: #fff8f0; border-radius: 16px;
+      padding: 12px 20px 10px; margin-bottom: 20px;
+    }
+    .go-score-label { font-size: 12px; color: #aaa; margin-bottom: 2px; }
+    .go-score       { font-size: 62px; font-weight: 900; color: #ff6b6b; line-height: 1; }
+    .go-score-unit  { font-size: 17px; color: #ff9a56; font-weight: 700; }
+    .go-count       { font-size: 12px; color: #aaa; margin-top: 5px; }
+    .go-count span  { color: #888; font-weight: 700; }
+    .btn-restart {
+      padding: 13px 34px; font-size: 16px; font-weight: 800;
+      color: #fff; background: linear-gradient(135deg, #ff6b6b, #ff9a56);
+      border: none; border-radius: 14px; cursor: pointer;
+      box-shadow: 0 6px 20px rgba(255,107,107,0.4); transition: transform 0.12s;
+    }
+    .btn-restart:hover  { transform: translateY(-2px); }
+    .btn-restart:active { transform: translateY(1px); }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <h1>🍔 ハンバーガースタック</h1>
+    <div class="score-row">
+      <span class="score-label">スコア</span>
+      <span class="score-value" id="scoreDisplay">0</span>
+      <span class="score-unit">pt</span>
+    </div>
+    <div class="count-row">食材 <span id="countDisplay">0</span> 種類</div>
+  </div>
+
+  <div class="stack-wrapper" id="stackWrapper">
+    <div class="stack" id="stack"></div>
+  </div>
+
+  <div class="footer">
+    <p class="hint">上のバンズが出たらゲーム終了！ 確率 <span>15%</span></p>
+    <button class="btn-add" id="addBtn" onclick="addIngredient()">次の食材を追加！</button>
+    <div class="info-row">
+      <button class="info-toggle" id="btnPts"  onclick="togglePanel('ptsPanel','btnPts')">食材の点数 ▼</button>
+      <button class="info-toggle" id="rankBtn" onclick="togglePanel('rankPanel','rankBtn')">称号の一覧 ▼</button>
+    </div>
+
+    <div class="info-panel" id="ptsPanel">
+      <table>
+        <tr><td>🥩 ビーフパティ</td><td class="hi">10pt</td><td>🥓 ベーコン</td><td class="hi">8pt</td></tr>
+        <tr><td>🍳 フライドエッグ</td><td class="hi">7pt</td><td>🥑 アボカド</td><td class="hi">6pt</td></tr>
+        <tr><td>🧀 チーズ</td><td class="mid">5pt</td><td>🍄 マッシュルーム</td><td class="mid">5pt</td></tr>
+        <tr><td>🍅 トマト</td><td class="mid">3pt</td><td>🌶️ ハラペーニョ</td><td class="mid">3pt</td></tr>
+        <tr><td>🥒 ピクルス</td><td class="lo">2pt</td><td>🫙 マヨネーズ</td><td class="lo">2pt</td></tr>
+        <tr><td>🥬 レタス</td><td class="lo">1pt</td><td>🧅 オニオン</td><td class="lo">1pt</td></tr>
+      </table>
+    </div>
+
+    <div class="info-panel" id="rankPanel">
+      <div class="rank-row"><span class="rank-name">😅 バンズだけ…</span><span class="rank-pts lo">0pt</span></div>
+      <div class="rank-row"><span class="rank-name">🌱 ミニバーガー</span><span class="rank-pts lo">1〜19pt</span></div>
+      <div class="rank-row"><span class="rank-name">🍔 スタンダード</span><span class="rank-pts mid">20〜59pt</span></div>
+      <div class="rank-row"><span class="rank-name">🏆 ビッグバーガー！</span><span class="rank-pts mid">60〜149pt</span></div>
+      <div class="rank-row"><span class="rank-name">🌟 モンスターバーガー！！</span><span class="rank-pts hi">150〜299pt</span></div>
+      <div class="rank-row"><span class="rank-name">🚀 伝説のバーガー！！！</span><span class="rank-pts hi">300pt〜</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="start-overlay show" id="startOverlay">
+  <div class="start-card">
+    <div class="start-logo">🍔</div>
+    <div class="start-title">ハンバーガースタック</div>
+    <div class="start-hs-wrap">
+      <div class="start-hs-label">ハイスコア</div>
+      <div id="startHsDisplay"></div>
+    </div>
+    <button class="btn-start" onclick="beginGame()">スタート！</button>
+    <p class="start-rule">上のバンズが来るまで食材を積もう！<br>高得点な食材ほど多くのptを獲得できる。</p>
+  </div>
+</div>
+
+<div class="gameover-overlay" id="gameoverOverlay">
+  <div class="gameover-card">
+    <div class="go-emoji" id="goEmoji">🎉</div>
+    <div class="go-title" id="goTitle">ハンバーガー完成！</div>
+    <div class="new-record" id="newRecord">🏅 新記録！</div>
+    <div class="go-rank" id="goRank"></div>
+    <div class="go-score-block">
+      <div class="go-score-label">合計スコア</div>
+      <div><span class="go-score" id="finalScore">0</span><span class="go-score-unit">pt</span></div>
+      <div class="go-count">食材 <span id="finalCount">0</span> 種類</div>
+      <div class="go-hiscore">ハイスコア <span id="goHiScore">0</span>pt</div>
+    </div>
+    <button class="btn-restart" onclick="showStartScreen()">もう一度チャレンジ！</button>
+  </div>
+</div>
+
+<script>
+  const INGREDIENTS = [
+    { name: 'ビーフパティ',   icon: '🥩', pts: 10, cls: 'beef'      },
+    { name: 'ベーコン',       icon: '🥓', pts:  8, cls: 'bacon'     },
+    { name: 'フライドエッグ', icon: '🍳', pts:  7, cls: 'egg'       },
+    { name: 'アボカド',       icon: '🥑', pts:  6, cls: 'avocado'   },
+    { name: 'チーズ',         icon: '🧀', pts:  5, cls: 'cheese'    },
+    { name: 'マッシュルーム', icon: '🍄', pts:  5, cls: 'mushroom'  },
+    { name: 'トマト',         icon: '🍅', pts:  3, cls: 'tomato'    },
+    { name: 'ハラペーニョ',   icon: '🌶️', pts:  3, cls: 'jalapeno' },
+    { name: 'ピクルス',       icon: '🥒', pts:  2, cls: 'pickle'    },
+    { name: 'マヨネーズ',     icon: '🫙', pts:  2, cls: 'mayo'      },
+    { name: 'レタス',         icon: '🥬', pts:  1, cls: 'lettuce'   },
+    { name: 'オニオン',       icon: '🧅', pts:  1, cls: 'onion'     },
+  ];
+
+  const TOP_BUN_PROB = 0.15;
+  let totalScore = 0, count = 0, gameActive = false, isAnimating = false;
+
+  function makeItem(cls, badgeHTML) {
+    const item = document.createElement('div');
+    item.className = 'stack-item';
+
+    const layer = document.createElement('div');
+    layer.className = `layer layer-${cls}`;
+    item.appendChild(layer);
+
+    if (badgeHTML) {
+      const badge = document.createElement('span');
+      badge.className = 'item-badge';
+      badge.innerHTML = badgeHTML;
+      item.appendChild(badge);
+    }
+    return item;
+  }
+
+  function showPopup(pts) {
+    const popup = document.createElement('div');
+    popup.className = 'point-popup ' + (pts >= 6 ? 'high' : pts >= 3 ? 'mid' : 'low');
+    popup.textContent = `+${pts}pt`;
+    document.getElementById('stackWrapper').appendChild(popup);
+    popup.addEventListener('animationend', () => popup.remove(), { once: true });
+  }
+
+  /* ── Web Audio SE ── */
+  let audioCtx = null;
+  function getAC() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+  }
+
+  function playDropSound(pts) {
+    try {
+      const ctx = getAC();
+      if (ctx.state === 'suspended') ctx.resume();
+      const now = ctx.currentTime;
+
+      // pts=0 → バンズ（柔らかいドスン）
+      // pts が高いほど低くて重い音、低いほど軽い音
+      const heavy   = pts === 0 || pts >= 7;
+      const medium  = pts >= 3 && pts <= 6;
+      const noiseHz = heavy ? 160 : medium ? 280 : 480;
+      const oscHz   = heavy ? 85  : medium ? 160 : 280;
+      const vol     = heavy ? 0.50 : medium ? 0.38 : 0.28;
+      const decay   = heavy ? 0.14 : medium ? 0.10 : 0.07;
+
+      // ノイズバースト（衝撃音）
+      const bufLen = Math.floor(ctx.sampleRate * decay * 2.2);
+      const buf    = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+      const data   = buf.getChannelData(0);
+      for (let i = 0; i < bufLen; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * decay));
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buf;
+
+      const filt = ctx.createBiquadFilter();
+      filt.type = 'bandpass';
+      filt.frequency.value = noiseHz;
+      filt.Q.value = 1.4;
+
+      const nGain = ctx.createGain();
+      nGain.gain.setValueAtTime(vol, now);
+      noise.connect(filt); filt.connect(nGain); nGain.connect(ctx.destination);
+      noise.start(now);
+
+      // ピッチドロップオシレーター（ドスン感）
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(oscHz * 2.2, now);
+      osc.frequency.exponentialRampToValueAtTime(oscHz * 0.55, now + decay);
+
+      const oGain = ctx.createGain();
+      oGain.gain.setValueAtTime(vol * 0.45, now);
+      oGain.gain.exponentialRampToValueAtTime(0.0001, now + decay * 1.6);
+      osc.connect(oGain); oGain.connect(ctx.destination);
+      osc.start(now); osc.stop(now + decay * 1.6);
+    } catch (_) {}
+  }
+
+  function drop(item, isTopBun, pts) {
+    isAnimating = true;
+    document.getElementById('addBtn').disabled = true;
+
+    const stack = document.getElementById('stack');
+    item.classList.add('animate');
+    stack.insertBefore(item, stack.firstChild);
+    document.getElementById('stackWrapper').scrollTop = 0;
+
+    item.addEventListener('animationend', () => {
+      item.classList.remove('animate');
+      isAnimating = false;
+
+      playDropSound(pts);
+
+      if (!isTopBun && pts > 0) {
+        totalScore += pts;
+        count++;
+        document.getElementById('scoreDisplay').textContent = totalScore;
+        document.getElementById('countDisplay').textContent = count;
+        showPopup(pts);
+      }
+      if (isTopBun) endGame();
+      else document.getElementById('addBtn').disabled = false;
+    }, { once: true });
+  }
+
+  function addIngredient() {
+    if (!gameActive || isAnimating) return;
+    if (Math.random() < TOP_BUN_PROB) {
+      drop(makeItem('bun-top', null), true, 0);
+      return;
+    }
+    const ing = INGREDIENTS[Math.floor(Math.random() * INGREDIENTS.length)];
+    drop(makeItem(ing.cls, `${ing.icon} ${ing.name} <span class="b-pts">+${ing.pts}pt</span>`), false, ing.pts);
+  }
+
+  /* ── ハイスコア (localStorage) ── */
+  function getHiScore() {
+    return parseInt(localStorage.getItem('hb_hiscore') || '0');
+  }
+  function saveHiScore(score) {
+    const prev = getHiScore();
+    if (score > prev) { localStorage.setItem('hb_hiscore', score); return true; }
+    return false;
+  }
+
+  /* ── スタート画面 ── */
+  function showStartScreen() {
+    document.getElementById('gameoverOverlay').classList.remove('show');
+    const hs = getHiScore();
+    const el = document.getElementById('startHsDisplay');
+    if (hs > 0) {
+      el.innerHTML = `<span class="start-hs-value">${hs}</span><span class="start-hs-unit">pt</span>`;
+    } else {
+      el.innerHTML = `<div class="start-hs-none">まだ記録なし</div>`;
+    }
+    document.getElementById('startOverlay').classList.add('show');
+  }
+  function beginGame() {
+    document.getElementById('startOverlay').classList.remove('show');
+    startGame();
+  }
+
+  /* ── ファンファーレ SE ── */
+  function playFanfare(score) {
+    try {
+      const ctx = getAC();
+      if (ctx.state === 'suspended') ctx.resume();
+      const t0 = ctx.currentTime + 0.08;
+
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -12; comp.ratio.value = 4;
+      comp.connect(ctx.destination);
+
+      function tone(freq, start, dur, vol, type = 'triangle') {
+        const osc = ctx.createOscillator();
+        const gn  = ctx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gn.gain.setValueAtTime(0, t0 + start);
+        gn.gain.linearRampToValueAtTime(vol, t0 + start + 0.018);
+        gn.gain.setValueAtTime(vol * 0.78, t0 + start + dur * 0.5);
+        gn.gain.exponentialRampToValueAtTime(0.0001, t0 + start + dur);
+        osc.connect(gn); gn.connect(comp);
+        osc.start(t0 + start); osc.stop(t0 + start + dur + 0.02);
+      }
+
+      if (score <= 10) {
+        // ガッカリ下降音（トロンボーン風）
+        const osc = ctx.createOscillator();
+        const gn  = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(466, t0);
+        osc.frequency.linearRampToValueAtTime(311, t0 + 0.55);
+        gn.gain.setValueAtTime(0, t0);
+        gn.gain.linearRampToValueAtTime(0.06, t0 + 0.04);
+        gn.gain.setValueAtTime(0.05, t0 + 0.40);
+        gn.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.60);
+        osc.connect(gn); gn.connect(comp);
+        osc.start(t0); osc.stop(t0 + 0.65);
+      } else {
+        // 上昇アルペジオ → 最終和音
+        tone(523.25, 0.00, 0.13, 0.08); // C5
+        tone(659.25, 0.11, 0.13, 0.08); // E5
+        tone(783.99, 0.22, 0.13, 0.08); // G5
+        tone(1046.50, 0.33, 0.14, 0.08); // C6
+
+        // 最終和音（C major）
+        tone(261.63, 0.46, 0.72, 0.05); // C4 ベース
+        tone(523.25, 0.46, 0.72, 0.06); // C5
+        tone(659.25, 0.46, 0.72, 0.06); // E5
+        tone(783.99, 0.46, 0.72, 0.06); // G5
+        tone(1046.50, 0.49, 0.68, 0.05); // C6（少し遅れて輝き追加）
+
+        // 高スコアは追加で輝く高音
+        if (score >= 150) {
+          tone(1318.51, 0.52, 0.60, 0.03); // E6
+          tone(1567.98, 0.56, 0.55, 0.03); // G6
+        }
+      }
+    } catch (_) {}
+  }
+
+  /* ── ゲームオーバーメッセージ ── */
+  const MSG = {
+    low:  [
+      '上のバンズ、せっかち！',
+      'もっと食材が欲しかった…',
+      '惜しい！またチャレンジ！',
+      'ちょっと早かったね',
+    ],
+    mid:  [
+      'ハンバーガー完成！',
+      'ナイスバーガー！',
+      '美味しそう！',
+      'シェフ、お上手！',
+      'いい感じのバーガーだ！',
+      'グルメバーガー誕生！',
+      'これはうまそう！',
+      'なかなかの積み上げ！',
+    ],
+    high: [
+      '超豪華バーガー完成！！',
+      'これが伝説のバーガー…！！',
+      '世界一のバーガー誕生！！',
+      'モンスターバーガーが完成した！！',
+      'えっ、こんなに積んだの！？',
+    ],
+  };
+  function pickMsg(score) {
+    const pool = score <= 10 ? MSG.low : score >= 150 ? MSG.high : MSG.mid;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+  function pickEmoji(score, isNew) {
+    if (score <= 10) return '😅';
+    if (isNew)       return '🏆';
+    if (score >= 150) return '🤩';
+    return '🎉';
+  }
+
+  function endGame() {
+    gameActive = false;
+    const isNew = saveHiScore(totalScore);
+
+    document.getElementById('finalScore').textContent = totalScore;
+    document.getElementById('finalCount').textContent = count;
+    document.getElementById('goRank').textContent    = getRank(totalScore);
+    document.getElementById('goHiScore').textContent = getHiScore();
+    document.getElementById('goTitle').textContent   = pickMsg(totalScore);
+    document.getElementById('goEmoji').textContent   = pickEmoji(totalScore, isNew);
+    document.getElementById('newRecord').classList.toggle('show', isNew && totalScore > 0);
+
+    setTimeout(() => {
+      document.getElementById('gameoverOverlay').classList.add('show');
+      playFanfare(totalScore);
+    }, 700);
+  }
+
+  function getRank(pts) {
+    if (pts === 0)   return '😅 バンズだけ…';
+    if (pts <= 19)   return '🌱 ミニバーガー';
+    if (pts <= 59)   return '🍔 スタンダード';
+    if (pts <= 149)  return '🏆 ビッグバーガー！';
+    if (pts <= 299)  return '🌟 モンスターバーガー！！';
+    return               '🚀 伝説のバーガー！！！';
+  }
+
+  function togglePanel(panelId, btnId) {
+    const panel = document.getElementById(panelId);
+    const btn   = document.getElementById(btnId);
+    const opening = !panel.classList.contains('open');
+
+    // 両パネルを閉じてからトグル
+    ['ptsPanel','rankPanel'].forEach(id => document.getElementById(id).classList.remove('open'));
+    ['btnPts','rankBtn'].forEach(id => {
+      const b = document.getElementById(id);
+      b.textContent = b.textContent.replace('▲','▼');
+      b.classList.remove('active');
+    });
+
+    if (opening) {
+      panel.classList.add('open');
+      btn.textContent = btn.textContent.replace('▼','▲');
+      btn.classList.add('active');
+    }
+  }
+
+  function startGame() {
+    totalScore = 0; count = 0; gameActive = true; isAnimating = false;
+    document.getElementById('scoreDisplay').textContent = '0';
+    document.getElementById('countDisplay').textContent = '0';
+    document.getElementById('addBtn').disabled = false;
+    document.getElementById('stack').innerHTML = '';
+    drop(makeItem('bun-bottom', null), false, 0);
+  }
+
+  showStartScreen();
+</script>
+</body>
+</html>
