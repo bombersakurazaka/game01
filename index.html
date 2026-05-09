@@ -706,9 +706,9 @@
       transform-origin: center bottom;
     }
     @keyframes legendZoomOut {
-      0%   { transform: scale(4.5); opacity: 0; }
+      0%   { transform: scale(var(--zoom-start, 4.5)); opacity: 0; }
       8%   { opacity: 1; }
-      100% { transform: scale(1);   opacity: 1; }
+      100% { transform: scale(var(--zoom-end, 1));     opacity: 1; }
     }
 
     /* フッター */
@@ -833,7 +833,7 @@
     <div class="legend-title-text">🚀 伝説のバーガー誕生！！！</div>
     <div id="legendScoreText"></div>
   </div>
-  <div class="legend-burger-area">
+  <div class="legend-burger-area" id="legendBurgerArea">
     <div class="legend-burger-inner" id="legendBurgerInner"></div>
   </div>
   <div class="legend-footer">
@@ -1052,123 +1052,39 @@
 
   /* ── スタート画面 ── */
   /* ── 伝説演出 (300pt超) ── */
-  let boleroActive = false;
-  let boleroMasterGain = null;
+  let boleroAudio = null;
 
   function playBolero() {
     try {
-      const ctx = getAC();
-      if (ctx.state === 'suspended') ctx.resume();
-      boleroActive = true;
-
-      boleroMasterGain = ctx.createGain();
-      boleroMasterGain.gain.setValueAtTime(0, ctx.currentTime);
-      boleroMasterGain.gain.linearRampToValueAtTime(0.85, ctx.currentTime + 2.5);
-      boleroMasterGain.connect(ctx.destination);
-
-      const bpm  = 76;
-      const beat = 60 / bpm;
-      const bar  = beat * 3;
-
-      const N = {
-        D4:293.66, E4:329.63, F4:349.23, G4:392.00,
-        Ab4:415.30, A4:440.00, Bb4:466.16, B4:493.88,
-        C5:523.25, D5:587.33,
-      };
-
-      // Theme A (8 bars = 24 beats)
-      const themeA = [
-        [N.G4,  0.0, 1.5],[N.G4,  1.5, 0.5],[N.A4,  2.0, 1.0],
-        [N.G4,  3.0, 1.5],[N.E4,  4.5, 1.0],[N.D4,  5.5, 0.5],
-        [N.E4,  6.0, 1.0],[N.G4,  7.0, 0.5],[N.A4,  7.5, 1.5],
-        [N.B4,  9.0, 1.5],[N.A4, 10.5, 1.0],[N.G4, 11.5, 0.5],
-        [N.G4, 12.0, 1.5],[N.G4, 13.5, 0.5],[N.A4, 14.0, 1.0],
-        [N.G4, 15.0, 1.5],[N.E4, 16.5, 1.0],[N.D4, 17.5, 0.5],
-        [N.E4, 18.0, 1.5],[N.D4, 19.5, 1.5],
-        [N.D4, 21.0, 3.0],
-      ];
-
-      // Theme B (8 bars = 24 beats) simplified
-      const themeB = [
-        [N.G4,  0.0, 1.0],[N.Bb4, 1.0, 0.5],[N.A4,  1.5, 1.5],
-        [N.G4,  3.0, 1.0],[N.E4,  4.0, 0.5],[N.G4,  4.5, 0.5],[N.A4, 5.0, 1.0],
-        [N.G4,  6.0, 1.5],[N.E4,  7.5, 1.5],
-        [N.D4,  9.0, 1.5],[N.E4, 10.5, 1.5],
-        [N.F4, 12.0, 1.0],[N.G4, 13.0, 0.5],[N.A4, 13.5, 1.5],
-        [N.Bb4,15.0, 1.5],[N.A4, 16.5, 1.0],[N.G4, 17.5, 0.5],
-        [N.A4, 18.0, 1.5],[N.G4, 19.5, 1.5],
-        [N.G4, 21.0, 3.0],
-      ];
-
-      const themes    = [themeA, themeB];
-      const THEME_DUR = 24 * beat;
-      const snarePat  = [0, 1.0, 1.5, 2.0, 2.5];
-
-      function makeSnare(t) {
-        const bufLen = Math.floor(ctx.sampleRate * 0.06);
-        const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
-        const d = buf.getChannelData(0);
-        for (let i = 0; i < bufLen; i++) d[i] = (Math.random()*2-1) * Math.exp(-i/(ctx.sampleRate*0.018));
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        const filt = ctx.createBiquadFilter();
-        filt.type = 'bandpass'; filt.frequency.value = 2200; filt.Q.value = 0.8;
-        const gn = ctx.createGain();
-        gn.gain.setValueAtTime(0.18, t);
-        src.connect(filt); filt.connect(gn); gn.connect(boleroMasterGain);
-        src.start(t);
+      if (!boleroAudio) {
+        boleroAudio = new Audio('https://classical-sound.up.seesaa.net/image/Ravel-Borelo.mp3');
+        boleroAudio.loop = true;
       }
-
-      function makeMelNote(freq, t, dur) {
-        const osc = ctx.createOscillator();
-        const gn  = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.value = freq;
-        gn.gain.setValueAtTime(0, t);
-        gn.gain.linearRampToValueAtTime(0.10, t + 0.025);
-        gn.gain.setValueAtTime(0.075, t + dur * 0.65);
-        gn.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.95);
-        osc.connect(gn); gn.connect(boleroMasterGain);
-        osc.start(t); osc.stop(t + dur + 0.05);
-      }
-
-      let loopIdx  = 0;
-      let nextStart = ctx.currentTime + 0.2;
-
-      function loop() {
-        if (!boleroActive) return;
-        const theme = themes[loopIdx % themes.length];
-        for (let b = 0; b < 8; b++) {
-          const tBar = nextStart + b * bar;
-          snarePat.forEach(bp => makeSnare(tBar + bp * beat));
-        }
-        theme.forEach(([f, beatOff, dur]) => makeMelNote(f, nextStart + beatOff * beat, dur * beat));
-        loopIdx++;
-        nextStart += THEME_DUR;
-        const msUntil = (nextStart - ctx.currentTime - 0.5) * 1000;
-        setTimeout(loop, Math.max(msUntil, 50));
-      }
-      loop();
+      boleroAudio.currentTime = 0;
+      boleroAudio.volume = 0;
+      boleroAudio.play().catch(() => {});
+      let vol = 0;
+      const timer = setInterval(() => {
+        vol = Math.min(vol + 0.04, 0.85);
+        if (boleroAudio) boleroAudio.volume = vol;
+        if (vol >= 0.85) clearInterval(timer);
+      }, 100);
     } catch (_) {}
   }
 
   function stopBolero() {
-    boleroActive = false;
-    if (boleroMasterGain) {
-      try {
-        const ctx = getAC();
-        const now = ctx.currentTime;
-        boleroMasterGain.gain.cancelScheduledValues(now);
-        boleroMasterGain.gain.setValueAtTime(boleroMasterGain.gain.value, now);
-        boleroMasterGain.gain.linearRampToValueAtTime(0, now + 0.8);
-      } catch (_) {}
-      boleroMasterGain = null;
-    }
+    if (!boleroAudio) return;
+    const audio = boleroAudio;
+    let vol = audio.volume;
+    const timer = setInterval(() => {
+      vol = Math.max(vol - 0.06, 0);
+      audio.volume = vol;
+      if (vol <= 0) { clearInterval(timer); audio.pause(); audio.currentTime = 0; }
+    }, 50);
   }
 
   function showLegendScreen() {
-    const stack = document.getElementById('stack');
-    const clone = stack.cloneNode(true);
+    const clone = document.getElementById('stack').cloneNode(true);
     clone.querySelectorAll('.animate').forEach(el => el.classList.remove('animate'));
     clone.querySelectorAll('.point-popup').forEach(el => el.remove());
 
@@ -1179,12 +1095,30 @@
     document.getElementById('legendScoreText').innerHTML =
       `<div><span class="legend-score-num">${totalScore}</span><span class="legend-score-unit">pt</span></div>`;
 
-    // アニメーション再トリガー
-    inner.style.animation = 'none';
-    inner.offsetHeight;
-    inner.style.animation = 'legendZoomOut 5s cubic-bezier(0.16, 1, 0.3, 1) forwards';
-
+    // 一旦非表示でオーバーレイを開き、バーガー高さを計測してからズームアウト開始
+    inner.style.transition = 'none';
+    inner.style.animation  = 'none';
+    inner.style.transform  = 'scale(1)';
+    inner.style.opacity    = '0';
     document.getElementById('legendOverlay').classList.add('show');
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const areaH   = document.getElementById('legendBurgerArea').clientHeight;
+      const innerH  = inner.scrollHeight;
+      const fitScale = (areaH > 0 && innerH > areaH) ? (areaH / innerH) * 0.95 : 1.0;
+
+      // ズームアウト開始位置（大きい状態）に瞬間セット
+      inner.style.transition = 'none';
+      inner.style.transform  = `scale(${fitScale * 4.5})`;
+      inner.style.opacity    = '0';
+      inner.offsetHeight; // reflow で確定
+
+      // トランジションでズームアウト
+      inner.style.transition = 'transform 5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease-in';
+      inner.style.transform  = `scale(${fitScale})`;
+      inner.style.opacity    = '1';
+    }));
+
     setTimeout(() => playBolero(), 400);
   }
 
