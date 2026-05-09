@@ -611,6 +611,121 @@
     }
     .btn-view-restart:hover  { transform: translateY(-2px); box-shadow: 0 7px 22px rgba(255,107,107,0.5); }
     .btn-view-restart:active { transform: translateY(1px); }
+
+    /* ── 伝説演出オーバーレイ (300pt超) ── */
+    .legend-overlay {
+      display: none; position: fixed; inset: 0;
+      background: radial-gradient(ellipse at 50% 65%, #3d1200 0%, #080005 75%);
+      flex-direction: column; align-items: center;
+      z-index: 300; overflow: hidden;
+    }
+    .legend-overlay.show { display: flex; }
+
+    /* 後光 放射光線 */
+    .legend-rays {
+      position: absolute;
+      width: 220vmax; height: 220vmax;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: conic-gradient(
+        from 0deg,
+        rgba(255,220,50,0.24)  0deg,  rgba(255,220,50,0)    11deg,
+        rgba(255,220,50,0)    18deg,  rgba(255,220,50,0.20)  29deg,
+        rgba(255,220,50,0)    36deg,  rgba(255,220,50,0)     43deg,
+        rgba(255,220,50,0.22) 54deg,  rgba(255,220,50,0)     65deg,
+        rgba(255,220,50,0.18) 76deg,  rgba(255,220,50,0)     87deg,
+        rgba(255,220,50,0.24) 98deg,  rgba(255,220,50,0)    109deg,
+        rgba(255,220,50,0.20)120deg,  rgba(255,220,50,0)    131deg,
+        rgba(255,220,50,0.22)142deg,  rgba(255,220,50,0)    153deg,
+        rgba(255,220,50,0.18)164deg,  rgba(255,220,50,0)    175deg,
+        rgba(255,220,50,0.24)186deg,  rgba(255,220,50,0)    197deg,
+        rgba(255,220,50,0.20)208deg,  rgba(255,220,50,0)    219deg,
+        rgba(255,220,50,0.22)230deg,  rgba(255,220,50,0)    241deg,
+        rgba(255,220,50,0.18)252deg,  rgba(255,220,50,0)    263deg,
+        rgba(255,220,50,0.24)274deg,  rgba(255,220,50,0)    285deg,
+        rgba(255,220,50,0.20)296deg,  rgba(255,220,50,0)    307deg,
+        rgba(255,220,50,0.22)318deg,  rgba(255,220,50,0)    329deg,
+        rgba(255,220,50,0.18)340deg,  rgba(255,220,50,0)    351deg,
+        rgba(255,220,50,0.24)360deg
+      );
+      animation: legendRaysRotate 18s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes legendRaysRotate {
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    /* 中央ハロー */
+    .legend-halo {
+      position: absolute;
+      width: 380px; height: 380px;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(255,210,60,0.30) 0%, rgba(255,140,0,0.12) 45%, transparent 72%);
+      animation: legendHaloBreath 2.8s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes legendHaloBreath {
+      0%, 100% { transform: translate(-50%, -50%) scale(1);    opacity: 0.85; }
+      50%       { transform: translate(-50%, -50%) scale(1.22); opacity: 1;    }
+    }
+
+    /* ヘッダー */
+    .legend-header {
+      position: relative; z-index: 10;
+      text-align: center; padding: 22px 20px 6px; flex-shrink: 0;
+    }
+    .legend-crown {
+      font-size: 52px; line-height: 1;
+      animation: legendCrownPop 0.75s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    }
+    @keyframes legendCrownPop {
+      from { transform: rotate(-15deg) scale(0.3); opacity: 0; }
+      to   { transform: rotate(0deg)   scale(1);   opacity: 1; }
+    }
+    .legend-title-text {
+      font-size: 19px; font-weight: 900; color: #ffd54f; margin-top: 8px;
+      text-shadow: 0 0 22px rgba(255,210,50,0.85), 0 2px 8px rgba(0,0,0,0.6);
+    }
+    .legend-score-num {
+      font-size: 58px; font-weight: 900; color: #fff; line-height: 1;
+      text-shadow: 0 0 30px rgba(255,215,0,1), 0 0 60px rgba(255,150,0,0.5);
+    }
+    .legend-score-unit { font-size: 20px; color: #ffd54f; font-weight: 700; }
+
+    /* バーガー表示エリア */
+    .legend-burger-area {
+      flex: 1; position: relative; z-index: 10;
+      width: 100%; max-width: 420px;
+      overflow: hidden;
+      display: flex; align-items: flex-end;
+    }
+    .legend-burger-inner {
+      display: flex; flex-direction: column;
+      width: 100%; background: #fdf6e3;
+      transform-origin: center bottom;
+    }
+    @keyframes legendZoomOut {
+      0%   { transform: scale(4.5); opacity: 0; }
+      8%   { opacity: 1; }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+
+    /* フッター */
+    .legend-footer {
+      position: relative; z-index: 10;
+      padding: 12px 24px 30px; flex-shrink: 0;
+      width: 100%; max-width: 420px;
+    }
+    .btn-legend-cont {
+      width: 100%; padding: 14px; font-size: 16px; font-weight: 800;
+      color: #1a0800; background: linear-gradient(135deg, #ffd54f, #ff9800);
+      border: none; border-radius: 14px; cursor: pointer;
+      box-shadow: 0 6px 24px rgba(255,200,50,0.55);
+      transition: transform 0.12s, box-shadow 0.12s;
+    }
+    .btn-legend-cont:hover  { transform: translateY(-2px); box-shadow: 0 9px 30px rgba(255,200,50,0.65); }
+    .btn-legend-cont:active { transform: translateY(1px); }
   </style>
 </head>
 <body>
@@ -707,6 +822,22 @@
   <div class="view-footer">
     <button class="btn-view-back" onclick="backToResult()">← 結果に戻る</button>
     <button class="btn-view-restart" onclick="showStartScreen()">もう一度チャレンジ！</button>
+  </div>
+</div>
+
+<div class="legend-overlay" id="legendOverlay">
+  <div class="legend-rays"></div>
+  <div class="legend-halo"></div>
+  <div class="legend-header">
+    <div class="legend-crown">👑</div>
+    <div class="legend-title-text">🚀 伝説のバーガー誕生！！！</div>
+    <div id="legendScoreText"></div>
+  </div>
+  <div class="legend-burger-area">
+    <div class="legend-burger-inner" id="legendBurgerInner"></div>
+  </div>
+  <div class="legend-footer">
+    <button class="btn-legend-cont" onclick="legendContinue()">結果を見る →</button>
   </div>
 </div>
 
@@ -920,9 +1051,154 @@
   }
 
   /* ── スタート画面 ── */
+  /* ── 伝説演出 (300pt超) ── */
+  let boleroActive = false;
+  let boleroMasterGain = null;
+
+  function playBolero() {
+    try {
+      const ctx = getAC();
+      if (ctx.state === 'suspended') ctx.resume();
+      boleroActive = true;
+
+      boleroMasterGain = ctx.createGain();
+      boleroMasterGain.gain.setValueAtTime(0, ctx.currentTime);
+      boleroMasterGain.gain.linearRampToValueAtTime(0.85, ctx.currentTime + 2.5);
+      boleroMasterGain.connect(ctx.destination);
+
+      const bpm  = 76;
+      const beat = 60 / bpm;
+      const bar  = beat * 3;
+
+      const N = {
+        D4:293.66, E4:329.63, F4:349.23, G4:392.00,
+        Ab4:415.30, A4:440.00, Bb4:466.16, B4:493.88,
+        C5:523.25, D5:587.33,
+      };
+
+      // Theme A (8 bars = 24 beats)
+      const themeA = [
+        [N.G4,  0.0, 1.5],[N.G4,  1.5, 0.5],[N.A4,  2.0, 1.0],
+        [N.G4,  3.0, 1.5],[N.E4,  4.5, 1.0],[N.D4,  5.5, 0.5],
+        [N.E4,  6.0, 1.0],[N.G4,  7.0, 0.5],[N.A4,  7.5, 1.5],
+        [N.B4,  9.0, 1.5],[N.A4, 10.5, 1.0],[N.G4, 11.5, 0.5],
+        [N.G4, 12.0, 1.5],[N.G4, 13.5, 0.5],[N.A4, 14.0, 1.0],
+        [N.G4, 15.0, 1.5],[N.E4, 16.5, 1.0],[N.D4, 17.5, 0.5],
+        [N.E4, 18.0, 1.5],[N.D4, 19.5, 1.5],
+        [N.D4, 21.0, 3.0],
+      ];
+
+      // Theme B (8 bars = 24 beats) simplified
+      const themeB = [
+        [N.G4,  0.0, 1.0],[N.Bb4, 1.0, 0.5],[N.A4,  1.5, 1.5],
+        [N.G4,  3.0, 1.0],[N.E4,  4.0, 0.5],[N.G4,  4.5, 0.5],[N.A4, 5.0, 1.0],
+        [N.G4,  6.0, 1.5],[N.E4,  7.5, 1.5],
+        [N.D4,  9.0, 1.5],[N.E4, 10.5, 1.5],
+        [N.F4, 12.0, 1.0],[N.G4, 13.0, 0.5],[N.A4, 13.5, 1.5],
+        [N.Bb4,15.0, 1.5],[N.A4, 16.5, 1.0],[N.G4, 17.5, 0.5],
+        [N.A4, 18.0, 1.5],[N.G4, 19.5, 1.5],
+        [N.G4, 21.0, 3.0],
+      ];
+
+      const themes    = [themeA, themeB];
+      const THEME_DUR = 24 * beat;
+      const snarePat  = [0, 1.0, 1.5, 2.0, 2.5];
+
+      function makeSnare(t) {
+        const bufLen = Math.floor(ctx.sampleRate * 0.06);
+        const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < bufLen; i++) d[i] = (Math.random()*2-1) * Math.exp(-i/(ctx.sampleRate*0.018));
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const filt = ctx.createBiquadFilter();
+        filt.type = 'bandpass'; filt.frequency.value = 2200; filt.Q.value = 0.8;
+        const gn = ctx.createGain();
+        gn.gain.setValueAtTime(0.18, t);
+        src.connect(filt); filt.connect(gn); gn.connect(boleroMasterGain);
+        src.start(t);
+      }
+
+      function makeMelNote(freq, t, dur) {
+        const osc = ctx.createOscillator();
+        const gn  = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        gn.gain.setValueAtTime(0, t);
+        gn.gain.linearRampToValueAtTime(0.10, t + 0.025);
+        gn.gain.setValueAtTime(0.075, t + dur * 0.65);
+        gn.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.95);
+        osc.connect(gn); gn.connect(boleroMasterGain);
+        osc.start(t); osc.stop(t + dur + 0.05);
+      }
+
+      let loopIdx  = 0;
+      let nextStart = ctx.currentTime + 0.2;
+
+      function loop() {
+        if (!boleroActive) return;
+        const theme = themes[loopIdx % themes.length];
+        for (let b = 0; b < 8; b++) {
+          const tBar = nextStart + b * bar;
+          snarePat.forEach(bp => makeSnare(tBar + bp * beat));
+        }
+        theme.forEach(([f, beatOff, dur]) => makeMelNote(f, nextStart + beatOff * beat, dur * beat));
+        loopIdx++;
+        nextStart += THEME_DUR;
+        const msUntil = (nextStart - ctx.currentTime - 0.5) * 1000;
+        setTimeout(loop, Math.max(msUntil, 50));
+      }
+      loop();
+    } catch (_) {}
+  }
+
+  function stopBolero() {
+    boleroActive = false;
+    if (boleroMasterGain) {
+      try {
+        const ctx = getAC();
+        const now = ctx.currentTime;
+        boleroMasterGain.gain.cancelScheduledValues(now);
+        boleroMasterGain.gain.setValueAtTime(boleroMasterGain.gain.value, now);
+        boleroMasterGain.gain.linearRampToValueAtTime(0, now + 0.8);
+      } catch (_) {}
+      boleroMasterGain = null;
+    }
+  }
+
+  function showLegendScreen() {
+    const stack = document.getElementById('stack');
+    const clone = stack.cloneNode(true);
+    clone.querySelectorAll('.animate').forEach(el => el.classList.remove('animate'));
+    clone.querySelectorAll('.point-popup').forEach(el => el.remove());
+
+    const inner = document.getElementById('legendBurgerInner');
+    inner.innerHTML = '';
+    while (clone.firstChild) inner.appendChild(clone.firstChild);
+
+    document.getElementById('legendScoreText').innerHTML =
+      `<div><span class="legend-score-num">${totalScore}</span><span class="legend-score-unit">pt</span></div>`;
+
+    // アニメーション再トリガー
+    inner.style.animation = 'none';
+    inner.offsetHeight;
+    inner.style.animation = 'legendZoomOut 5s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+
+    document.getElementById('legendOverlay').classList.add('show');
+    setTimeout(() => playBolero(), 400);
+  }
+
+  function legendContinue() {
+    stopBolero();
+    document.getElementById('legendOverlay').classList.remove('show');
+    document.getElementById('gameoverOverlay').classList.add('show');
+  }
+
   function showStartScreen() {
     document.getElementById('gameoverOverlay').classList.remove('show');
     document.getElementById('viewOverlay').classList.remove('show');
+    document.getElementById('legendOverlay').classList.remove('show');
+    stopBolero();
     const hs = getHiScore();
     const el = document.getElementById('startHsDisplay');
     if (hs > 0) {
@@ -1146,8 +1422,12 @@
     document.getElementById('newRecord').classList.toggle('show', isNew && totalScore > 0);
 
     setTimeout(() => {
-      document.getElementById('gameoverOverlay').classList.add('show');
-      playFanfare(totalScore);
+      if (totalScore >= 300) {
+        showLegendScreen();
+      } else {
+        document.getElementById('gameoverOverlay').classList.add('show');
+        playFanfare(totalScore);
+      }
     }, 700);
   }
 
